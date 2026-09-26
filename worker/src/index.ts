@@ -7,7 +7,7 @@ import { env } from 'cloudflare:workers'
 interface Env {
 	AI: any;                         
 	MYBROWSER: BrowserWorker;         
-	MCP: DurableObjectNamespace;      
+MCP_OBJECT: DurableObjectNamespace;
 	KV: KVNamespace;           
 	REC_EMAIL: string;                
 	REC_PASSWORD: string;             
@@ -1062,7 +1062,36 @@ export default {
 				return new Response(`Error: ${error}`, { status: 500 });
 			}
 		}
+// Temporary read-only Dolores Park availability test
+if (url.pathname === '/test-dolores') {
+	const id = env.MCP_OBJECT.idFromName('test-dolores');
+	const stub = env.MCP_OBJECT.get(id);
 
+	const mcpRequest = new Request(
+		new URL('/mcp', request.url),
+		{
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Accept': 'application/json, text/event-stream'
+			},
+			body: JSON.stringify({
+				jsonrpc: '2.0',
+				id: 1,
+				method: 'tools/call',
+				params: {
+					name: 'check_tennis_courts',
+					arguments: {
+						court: 'Dolores Park',
+						date: 'tomorrow'
+					}
+				}
+			})
+		}
+	);
+
+	return MyMCP.serve('/mcp').fetch(mcpRequest, env, ctx);
+}
 		// Root endpoint with info
 		if (url.pathname === '/') {
 			return new Response(`🎾 SF Tennis Court Booking MCP Server
