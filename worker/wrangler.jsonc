@@ -31,13 +31,12 @@
 	"browser": {
 		"binding": "MYBROWSER"
 	},
-	"kv_namespaces": [
-		{
-			"binding": "KV",
-			"id": "56fa6b92469d46be87850d26d172f1dd",
-			"preview_id": "853def346e054bccb6cf1b7674a1d86e"
-		}
-	],
+"kv_namespaces": [
+  {
+    "binding": "KV",
+    "id": "a0aec160d703448390ed4b8b1b49fd58"
+  }
+],
 	"vars": {
 		"ENVIRONMENT": "development"
 	}
