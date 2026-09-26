@@ -1076,11 +1076,16 @@ if (url.pathname === '/test-dolores') {
 		});
 
 		await page.waitForTimeout(10000);
+await page.getByRole('button', { name: 'Today', exact: true }).click();
+await page.waitForTimeout(1000);
+
+const bodyText = await page.locator('body').innerText();
 const buttons = await page.locator('button').allTextContents();
 
 return new Response(JSON.stringify({
 	success: true,
-	buttons
+buttons,
+pagePreview: bodyText.slice(0, 3000)
 }, null, 2), {
 	headers: { 'Content-Type': 'application/json' }
 });
