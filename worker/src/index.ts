@@ -1081,19 +1081,32 @@ await page.waitForTimeout(1000);
 
 const bodyText = await page.locator('body').innerText();
 const buttons = await page.locator('button').allTextContents();
-const calendarButtons = await page.locator('button').evaluateAll(elements =>
-	elements
-		.map(el => ({
-			text: el.textContent?.trim(),
-			ariaLabel: el.getAttribute('aria-label'),
-			title: el.getAttribute('title'),
-			className: el.getAttribute('class')
-		}))
-		.filter(el => /^\d{1,2}$/.test(el.text || ''))
-);
-		return new Response(JSON.stringify({
+const targetDate = 'Thursday, October 1st, 2026';
+
+await page
+	.locator(`button[aria-label="${targetDate}"]`)
+	.click();
+
+await page.getByRole('button', { name: 'Done', exact: true }).click();
+
+await page.waitForTimeout(5000);
+
+const updatedBodyText = await page.locator('body').innerText();
+
+const start = updatedBodyText.indexOf('Dolores');
+const end = updatedBodyText.indexOf('DuPont', start);
+
+const doloresAvailability =
+	start >= 0
+		? updatedBodyText.slice(
+			start,
+			end > start ? end : start + 1000
+		).trim()
+		: 'Dolores Park not found';
+return new Response(JSON.stringify({
 	success: true,
-calendarButtons
+	targetDate,
+	doloresAvailability
 }, null, 2), {
 	headers: { 'Content-Type': 'application/json' }
 });
