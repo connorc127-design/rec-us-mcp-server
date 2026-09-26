@@ -1062,35 +1062,48 @@ export default {
 				return new Response(`Error: ${error}`, { status: 500 });
 			}
 		}
-// Temporary read-only Dolores Park availability test
+// Temporary browser + Rec.us test
 if (url.pathname === '/test-dolores') {
-	const id = env.MCP_OBJECT.idFromName('test-dolores');
-	const stub = env.MCP_OBJECT.get(id);
+	let browser;
 
-	const mcpRequest = new Request(
-		new URL('/mcp', request.url),
-		{
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'Accept': 'application/json, text/event-stream'
-			},
-			body: JSON.stringify({
-				jsonrpc: '2.0',
-				id: 1,
-				method: 'tools/call',
-				params: {
-					name: 'check_tennis_courts',
-					arguments: {
-						court: 'Dolores Park',
-						date: 'tomorrow'
-					}
-				}
-			})
+	try {
+		browser = await launch(env.MYBROWSER);
+		const page = await browser.newPage();
+
+		await page.goto('https://www.rec.us/sfrecpark', {
+			waitUntil: 'domcontentloaded',
+			timeout: 20000
+		});
+
+		await page.waitForTimeout(3000);
+
+		const title = await page.title();
+		const bodyText = await page.locator('body').innerText();
+
+		await browser.close();
+
+		return new Response(JSON.stringify({
+			success: true,
+			title,
+			doloresFound: bodyText.toLowerCase().includes('dolores'),
+			pagePreview: bodyText.slice(0, 1500)
+		}, null, 2), {
+			headers: { 'Content-Type': 'application/json' }
+		});
+
+	} catch (error) {
+		if (browser) {
+			try { await browser.close(); } catch {}
 		}
-	);
 
-	return MyMCP.serve('/mcp').fetch(mcpRequest, env, ctx);
+		return new Response(JSON.stringify({
+			success: false,
+			error: error instanceof Error ? error.message : String(error)
+		}, null, 2), {
+			status: 500,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	}
 }
 		// Root endpoint with info
 		if (url.pathname === '/') {
