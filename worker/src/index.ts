@@ -1076,7 +1076,14 @@ if (url.pathname === '/test-dolores') {
 		});
 
 		await page.waitForTimeout(10000);
+const buttons = await page.locator('button').allTextContents();
 
+return new Response(JSON.stringify({
+	success: true,
+	buttons
+}, null, 2), {
+	headers: { 'Content-Type': 'application/json' }
+});
 		const title = await page.title();
 		const bodyText = await page.locator('body').innerText();
 
