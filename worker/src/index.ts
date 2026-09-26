@@ -1103,10 +1103,22 @@ const doloresAvailability =
 			end > start ? end : start + 1000
 		).trim()
 		: 'Dolores Park not found';
+const thursdayTimes = ['6:30 PM', '7:00 PM', '7:30 PM'];
+
+const matchingSlots = thursdayTimes.filter(time => {
+	const escapedTime = time.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const pattern = new RegExp(
+		escapedTime + '[\\s\\S]{0,50}?90',
+		'i'
+	);
+	return pattern.test(doloresAvailability);
+});
 return new Response(JSON.stringify({
 	success: true,
 	targetDate,
-	doloresAvailability
+	doloresAvailability,
+	matchingSlots,
+	hasMatch: matchingSlots.length > 0
 }, null, 2), {
 	headers: { 'Content-Type': 'application/json' }
 });
