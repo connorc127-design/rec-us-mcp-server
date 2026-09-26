@@ -1081,16 +1081,17 @@ await page.waitForTimeout(1000);
 
 const bodyText = await page.locator('body').innerText();
 const buttons = await page.locator('button').allTextContents();
-const calendarButtons = await page.locator(
-	'.react-datepicker button, .react-datepicker__day'
-).evaluateAll(elements =>
-	elements.map(el => ({
-		text: el.textContent?.trim(),
-		ariaLabel: el.getAttribute('aria-label'),
-		className: el.getAttribute('class')
-	}))
+const calendarButtons = await page.locator('button').evaluateAll(elements =>
+	elements
+		.map(el => ({
+			text: el.textContent?.trim(),
+			ariaLabel: el.getAttribute('aria-label'),
+			title: el.getAttribute('title'),
+			className: el.getAttribute('class')
+		}))
+		.filter(el => /^\d{1,2}$/.test(el.text || ''))
 );
-return new Response(JSON.stringify({
+		return new Response(JSON.stringify({
 	success: true,
 calendarButtons
 }, null, 2), {
