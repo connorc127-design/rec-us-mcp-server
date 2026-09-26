@@ -1090,7 +1090,7 @@ pagePreview: bodyText.slice(0, 3000)
 	headers: { 'Content-Type': 'application/json' }
 });
 		const title = await page.title();
-		const bodyText = await page.locator('body').innerText();
+
 
 		await browser.close();
 
