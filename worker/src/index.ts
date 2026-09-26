@@ -1075,7 +1075,7 @@ if (url.pathname === '/test-dolores') {
 			timeout: 20000
 		});
 
-		await page.waitForTimeout(3000);
+		await page.waitForTimeout(10000);
 
 		const title = await page.title();
 		const bodyText = await page.locator('body').innerText();
