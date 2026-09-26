@@ -1087,11 +1087,14 @@ if (url.pathname === '/test-dolores') {
 			title,
 			doloresFound: bodyText.toLowerCase().includes('dolores'),
 doloresPreview: (() => {
-	const lower = bodyText.toLowerCase();
-	const index = lower.indexOf('dolores');
-	return index >= 0
-		? bodyText.slice(index, index + 3000)
-		: 'Dolores Park not found';
+	const start = bodyText.indexOf('Dolores');
+	if (start === -1) return 'Dolores Park not found';
+
+	const end = bodyText.indexOf('DuPont', start);
+
+	return bodyText
+		.slice(start, end === -1 ? start + 1000 : end)
+		.trim();
 })()
 		}, null, 2), {
 			headers: { 'Content-Type': 'application/json' }
