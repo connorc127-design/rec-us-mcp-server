@@ -243,7 +243,6 @@ export class MyMCP extends McpAgent {
 
 	private getCorrectDate(dateInput?: string): string {
 		const today = new Date();
-		today.setFullYear(2025);
 		
 		if (!dateInput) {
 			const tomorrow = new Date(today);
@@ -262,9 +261,6 @@ export class MyMCP extends McpAgent {
 		}
 		
 		const providedDate = new Date(dateInput);
-		if (providedDate.getFullYear() < 2025) {
-			providedDate.setFullYear(2025);
-		}
 		
 		return providedDate.toISOString().split('T')[0];
 	}
