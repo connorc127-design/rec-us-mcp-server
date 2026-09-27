@@ -1200,13 +1200,11 @@ if (url.pathname === '/test-dolores') {
 			const label = dateLabel(target.date);
 
 			// Open date picker.
-			await page
-				.getByRole('button', {
-					name: /Today|^[A-Z][a-z]+, [A-Z][a-z]+ \d+/,
-					exact: false
-				})
-				.first()
-				.click();
+const dateFilterButton = page.locator('button').filter({
+	hasText: /^(Today|Tomorrow|Mon|Tue|Wed|Thu|Fri|Sat|Sun)/
+}).first();
+
+await dateFilterButton.click();
 
 			await page.waitForTimeout(500);
 
