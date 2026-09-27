@@ -1233,7 +1233,9 @@ await dateFilterButton.click();
 				continue;
 			}
 
-			await dateButton.click();
+await dateButton.evaluate((el: HTMLElement) => {
+	el.click();
+});
 
 			await page
 				.getByRole('button', {
