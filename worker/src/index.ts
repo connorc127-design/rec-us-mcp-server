@@ -1199,12 +1199,16 @@ if (url.pathname === '/test-dolores') {
 		for (const target of targets) {
 			const label = dateLabel(target.date);
 
-			// Open date picker.
-const dateFilterButton = page.locator('button').filter({
-	hasText: /^(Today|Tomorrow|Mon|Tue|Wed|Thu|Fri|Sat|Sun)/
+// Open date picker.
+const dateFilterButton = page.getByRole('button', {
+    name: /^(Today|Tomorrow|Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\s|$)/
 }).first();
 
-await dateFilterButton.click();
+if (await dateFilterButton.count() > 0) {
+    await dateFilterButton.evaluate((el: HTMLElement) => {
+        el.click();
+    });
+}
 
 			await page.waitForTimeout(500);
 
