@@ -1076,87 +1076,317 @@ if (url.pathname === '/test-dolores') {
 		});
 
 		await page.waitForTimeout(10000);
-await page.getByRole('button', { name: 'Today', exact: true }).click();
-await page.waitForTimeout(1000);
 
-const bodyText = await page.locator('body').innerText();
-const buttons = await page.locator('button').allTextContents();
-const targetDate = 'Thursday, October 1st, 2026';
+		// Generate upcoming Thursday, Saturday and Sunday
+		// using San Francisco calendar dates.
+		const sfDateParts = new Intl.DateTimeFormat('en-US', {
+			timeZone: 'America/Los_Angeles',
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit'
+		}).formatToParts(new Date());
 
-await page
-	.locator(`button[aria-label="${targetDate}"]`)
-	.click();
+		const year = Number(
+			sfDateParts.find(p => p.type === 'year')?.value
+		);
+		const month = Number(
+			sfDateParts.find(p => p.type === 'month')?.value
+		);
+		const day = Number(
+			sfDateParts.find(p => p.type === 'day')?.value
+		);
 
-await page.getByRole('button', { name: 'Done', exact: true }).click();
+		// Noon UTC avoids date-boundary problems while calculating
+		// calendar dates.
+		const today = new Date(Date.UTC(year, month - 1, day, 12));
 
-await page.waitForTimeout(5000);
+		const getNextDate = (targetDay: number) => {
+			const date = new Date(today);
+			let daysAhead =
+				(targetDay - date.getUTCDay() + 7) % 7;
 
-const updatedBodyText = await page.locator('body').innerText();
+			// If today is the requested weekday, check today.
+			date.setUTCDate(date.getUTCDate() + daysAhead);
 
-const start = updatedBodyText.indexOf('Dolores');
-const end = updatedBodyText.indexOf('DuPont', start);
+			return date;
+		};
 
-const doloresAvailability =
-	start >= 0
-		? updatedBodyText.slice(
-			start,
-			end > start ? end : start + 1000
-		).trim()
-		: 'Dolores Park not found';
-const thursdayTimes = ['6:30 PM', '7:00 PM', '7:30 PM'];
+		const targets = [
+			{
+				type: 'Thursday',
+				date: getNextDate(4),
+				startMinutes: 18 * 60 + 30,
+				endMinutes: 19 * 60 + 30
+			},
+			{
+				type: 'Saturday',
+				date: getNextDate(6),
+				startMinutes: 10 * 60,
+				endMinutes: 15 * 60
+			},
+			{
+				type: 'Sunday',
+				date: getNextDate(0),
+				startMinutes: 10 * 60,
+				endMinutes: 15 * 60
+			}
+		];
 
-const matchingSlots = thursdayTimes.filter(time => {
-	const escapedTime = time.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	const pattern = new RegExp(
-		escapedTime + '[\\s\\S]{0,50}?90',
-		'i'
-	);
-	return pattern.test(doloresAvailability);
-});
-return new Response(JSON.stringify({
-	success: true,
-	targetDate,
-	doloresAvailability,
-	matchingSlots,
-	hasMatch: matchingSlots.length > 0
-}, null, 2), {
-	headers: { 'Content-Type': 'application/json' }
-});
-		const title = await page.title();
+		const ordinal = (n: number) => {
+			const mod100 = n % 100;
 
+			if (mod100 >= 11 && mod100 <= 13) {
+				return `${n}th`;
+			}
+
+			switch (n % 10) {
+				case 1: return `${n}st`;
+				case 2: return `${n}nd`;
+				case 3: return `${n}rd`;
+				default: return `${n}th`;
+			}
+		};
+
+		const dateLabel = (date: Date) => {
+			const weekday = date.toLocaleDateString('en-US', {
+				weekday: 'long',
+				timeZone: 'UTC'
+			});
+
+			const monthName = date.toLocaleDateString('en-US', {
+				month: 'long',
+				timeZone: 'UTC'
+			});
+
+			return `${weekday}, ${monthName} ${ordinal(
+				date.getUTCDate()
+			)}, ${date.getUTCFullYear()}`;
+		};
+
+		const timeToMinutes = (time: string) => {
+			const match = time.match(
+				/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i
+			);
+
+			if (!match) return null;
+
+			let hour = Number(match[1]);
+			const minute = Number(match[2]);
+			const period = match[3].toUpperCase();
+
+			if (period === 'AM' && hour === 12) hour = 0;
+			if (period === 'PM' && hour !== 12) hour += 12;
+
+			return hour * 60 + minute;
+		};
+
+		const formatEndTime = (startMinutes: number) => {
+			const total = startMinutes + 90;
+			const hour24 = Math.floor(total / 60) % 24;
+			const minute = total % 60;
+
+			const period = hour24 >= 12 ? 'PM' : 'AM';
+			const hour12 = hour24 % 12 || 12;
+
+			return `${hour12}:${String(minute).padStart(
+				2,
+				'0'
+			)} ${period}`;
+		};
+
+		const results = [];
+
+		for (const target of targets) {
+			const label = dateLabel(target.date);
+
+			// Open date picker.
+			await page
+				.getByRole('button', {
+					name: /Today|^[A-Z][a-z]+, [A-Z][a-z]+ \d+/,
+					exact: false
+				})
+				.first()
+				.click();
+
+			await page.waitForTimeout(500);
+
+			const dateButton = page.locator(
+				`button[aria-label="${label}"]`
+			);
+
+			if (await dateButton.count() === 0) {
+				results.push({
+					day: target.type,
+					date: label,
+					status: 'outside-current-calendar-view',
+					matchingSlots: []
+				});
+
+				// Close the picker if possible.
+				const doneButton = page.getByRole(
+					'button',
+					{ name: 'Done', exact: true }
+				);
+
+				if (await doneButton.count()) {
+					await doneButton.click();
+				}
+
+				continue;
+			}
+
+			await dateButton.click();
+
+			await page
+				.getByRole('button', {
+					name: 'Done',
+					exact: true
+				})
+				.click();
+
+			await page.waitForTimeout(3000);
+
+			const bodyText =
+				await page.locator('body').innerText();
+
+			const start = bodyText.indexOf('Dolores');
+			const end = bodyText.indexOf('DuPont', start);
+
+			const dolores =
+				start >= 0
+					? bodyText.slice(
+						start,
+						end > start ? end : start + 1200
+					).trim()
+					: '';
+
+			// Rec.us currently renders each opening as:
+			// displayed time, accessible time text, duration(s).
+			const lines = dolores
+				.split('\n')
+				.map(line => line.trim())
+				.filter(Boolean);
+
+			const matchingSlots: {
+				start: string;
+				end: string;
+				durationMinutes: number;
+			}[] = [];
+
+			for (let i = 0; i < lines.length; i++) {
+				if (!/^\d{1,2}:\d{2}\s+(AM|PM)$/i.test(lines[i])) {
+					continue;
+				}
+
+				const startTime = lines[i].toUpperCase();
+				const minutes = timeToMinutes(startTime);
+
+				if (minutes === null) continue;
+
+				// Look just after the displayed time for a 90-minute
+				// duration before the next displayed time.
+				let has90 = false;
+
+				for (
+					let j = i + 1;
+					j < Math.min(i + 5, lines.length);
+					j++
+				) {
+					if (
+						/^\d{1,2}:\d{2}\s+(AM|PM)$/i.test(lines[j])
+					) {
+						break;
+					}
+
+					if (lines[j] === '90') {
+						has90 = true;
+						break;
+					}
+				}
+
+				if (
+					has90 &&
+					minutes >= target.startMinutes &&
+					minutes <= target.endMinutes
+				) {
+					matchingSlots.push({
+						start: startTime,
+						end: formatEndTime(minutes),
+						durationMinutes: 90
+					});
+				}
+			}
+
+			// Weekend preference: earliest start first.
+			matchingSlots.sort(
+				(a, b) =>
+					(timeToMinutes(a.start) ?? 0) -
+					(timeToMinutes(b.start) ?? 0)
+			);
+
+			results.push({
+				day: target.type,
+				date: label,
+				matchingSlots
+			});
+		}
 
 		await browser.close();
+		browser = undefined;
 
-		return new Response(JSON.stringify({
-			success: true,
-			title,
-			doloresFound: bodyText.toLowerCase().includes('dolores'),
-doloresPreview: (() => {
-	const start = bodyText.indexOf('Dolores');
-	if (start === -1) return 'Dolores Park not found';
+		const qualifyingSlots = results.flatMap(result =>
+			result.matchingSlots.map(slot => ({
+				day: result.day,
+				date: result.date,
+				...slot
+			}))
+		);
 
-	const end = bodyText.indexOf('DuPont', start);
-
-	return bodyText
-		.slice(start, end === -1 ? start + 1000 : end)
-		.trim();
-})()
-		}, null, 2), {
-			headers: { 'Content-Type': 'application/json' }
-		});
+		return new Response(
+			JSON.stringify(
+				{
+					success: true,
+					hasMatch: qualifyingSlots.length > 0,
+					qualifyingSlots,
+					results
+				},
+				null,
+				2
+			),
+			{
+				headers: {
+					'Content-Type': 'application/json',
+					'Cache-Control': 'no-store'
+				}
+			}
+		);
 
 	} catch (error) {
 		if (browser) {
-			try { await browser.close(); } catch {}
+			try {
+				await browser.close();
+			} catch {}
 		}
 
-		return new Response(JSON.stringify({
-			success: false,
-			error: error instanceof Error ? error.message : String(error)
-		}, null, 2), {
-			status: 500,
-			headers: { 'Content-Type': 'application/json' }
-		});
+		return new Response(
+			JSON.stringify(
+				{
+					success: false,
+					error:
+						error instanceof Error
+							? error.message
+							: String(error)
+				},
+				null,
+				2
+			),
+			{
+				status: 500,
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			}
+		);
 	}
 }
 		// Root endpoint with info
